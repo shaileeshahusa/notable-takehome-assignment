@@ -51,4 +51,16 @@ public class SchedulingController {
 							   @RequestParam(name = "appointmentTime") String appointmentTime) throws Exception {
 		schedulingService.addAppointment(doctorId, patientFirstName, patientLastName, appointmentType, appointmentTime);
 	}
+
+	@PutMapping("/appointments")
+	public void updateAppointment(@RequestParam(name = "appointmentId") String appointmentId,
+								@RequestParam(name = "doctorId", required = false) String doctorId,
+							   @RequestParam(name = "patientFirstName", required = false) String patientFirstName,
+							   @RequestParam(name = "patientLastName", required = false) String patientLastName,
+							   @RequestParam(name = "appointmentType", required = false) String appointmentType,
+							   @RequestParam(name = "appointmentTime", required = false) String appointmentTime) throws Exception {
+		schedulingService.updateAppointment(appointmentId, doctorId, patientFirstName, patientLastName, appointmentType, appointmentTime);
+	}
+
+
 }

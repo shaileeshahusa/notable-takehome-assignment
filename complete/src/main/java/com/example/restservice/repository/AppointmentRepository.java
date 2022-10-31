@@ -12,7 +12,7 @@ import java.util.Calendar;
 import java.util.List;
 
 @Repository
-public interface AppointmentRepository extends JpaRepository {
+public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
     @Override
     List<Appointment> findAll();
 
@@ -20,4 +20,6 @@ public interface AppointmentRepository extends JpaRepository {
 
     List<Appointment> findByDoctorAndAppointmentTime(@Param("doctor") Doctor doctor,
                                                        @Param("appointmentTime") Calendar appointmentTime);
+
+    Appointment findById(String id);
 }

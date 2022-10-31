@@ -5,9 +5,11 @@ import com.example.restservice.models.AppointmentType;
 import com.example.restservice.models.Doctor;
 import com.example.restservice.repository.AppointmentRepository;
 import com.example.restservice.repository.DoctorRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -16,8 +18,10 @@ import java.util.List;
 
 @Service
 public class SchedulingService {
+    @Autowired
     private DoctorRepository doctorRepository;
 
+    @Autowired
     private AppointmentRepository appointmentRepository;
 
     public SchedulingService(DoctorRepository doctorRepository, AppointmentRepository appointmentRepository){
@@ -50,37 +54,84 @@ public class SchedulingService {
     public void addAppointment(String doctorId, String patientFirstName, String patientLastName,
                                String appointmentTypeString, String appointmentTimeString) throws Exception {
 
-        Calendar appointmentTime = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy hh:mm aa");
-        appointmentTime.setTime(dateFormat.parse(appointmentTimeString));
-
-        Doctor doctor = doctorRepository.findById(doctorId);
-        List<Appointment> existingAppointments = appointmentRepository.findByDoctorAndAppointmentTime(doctor, appointmentTime);
-        if (existingAppointments.size() > 2) {
-            throw new Exception("Doctor is booked up for this time slot.");
-        }
+        Calendar appointmentTime = parseStringToCalendar(appointmentTimeString);
         if (appointmentTime.get(Calendar.MINUTE) % 15 != 0) {
             throw new Exception("Appointment must start at valid 15 minute interval.");
         }
 
+        Doctor doctor = doctorRepository.findById(doctorId);
+        if (!checkDoctorSchedule(doctorId, appointmentTime)) {
+            throw new Exception("Doctor is booked up for this time slot.");
+        }
 
         Appointment newAppointment = new Appointment();
         newAppointment.setDoctor(doctor);
         newAppointment.setPatientFirstName(patientFirstName);
         newAppointment.setPatientLastName(patientLastName);
+        updateAppointmentType(appointmentTypeString, newAppointment);
+        newAppointment.setAppointmentTime(appointmentTime);
+        appointmentRepository.save(newAppointment);
+    }
+
+    public void updateAppointment(String appointmentId, String doctorId, String patientFirstName, String patientLastName,
+                                  String appointmentTypeString, String appointmentTimeString) throws Exception {
+
+        Appointment appointmentToUpdate = appointmentRepository.findById(appointmentId);
+        if (!appointmentTimeString.equals(null)) {
+            Calendar newAppointmentTime = parseStringToCalendar(appointmentTimeString);
+            if (newAppointmentTime.get(Calendar.MINUTE) % 15 != 0) {
+                throw new Exception("Appointment must start at valid 15 minute interval.");
+            }
+            appointmentToUpdate.setAppointmentTime(newAppointmentTime);
+        }
+        if (!doctorId.equals(null)) {
+            Doctor newDoctor = doctorRepository.findById(doctorId);
+            appointmentToUpdate.setDoctor(newDoctor);
+        }
+        if (!checkDoctorSchedule(appointmentToUpdate.getDoctor().getId(), appointmentToUpdate.getAppointmentTime())) {
+            throw new Exception("Doctor is booked up for this time slot.");
+        }
+
+        if (!appointmentTypeString.equals(null)) {
+            updateAppointmentType(appointmentTypeString, appointmentToUpdate);
+        }
+        if (!patientFirstName.equals(null)) {
+            appointmentToUpdate.setPatientFirstName(patientFirstName);
+        }
+        if (!patientLastName.equals(null)) {
+            appointmentToUpdate.setPatientLastName(patientLastName);
+        }
+        appointmentRepository.save(appointmentToUpdate);
+    }
+
+    public boolean checkDoctorSchedule(String doctorId, Calendar appointmentTime) {
+        Doctor doctor = doctorRepository.findById(doctorId);
+        List<Appointment> existingAppointments = appointmentRepository.findByDoctorAndAppointmentTime(doctor, appointmentTime);
+        if (existingAppointments.size() > 2) {
+            return false;
+        }
+        else {
+            return true;
+        }
+    }
+
+    public void updateAppointmentType(String appointmentTypeString, Appointment appointment) throws Exception {
         if (appointmentTypeString.equals("New Patient")) {
-            newAppointment.setAppointmentType(AppointmentType.NEW_PATIENT);
+            appointment.setAppointmentType(AppointmentType.NEW_PATIENT);
         }
         else if (appointmentTypeString.equals("Follow-Up")) {
-            newAppointment.setAppointmentType(AppointmentType.FOLLOW_UP);
+            appointment.setAppointmentType(AppointmentType.FOLLOW_UP);
         }
         else {
             throw new Exception("Please enter a valid appointment type.");
         }
-        newAppointment.setAppointmentTime(appointmentTime);
+    }
 
-        appointmentRepository.save(newAppointment);
-
+    public Calendar parseStringToCalendar(String appointmentTimeString) throws ParseException {
+        Calendar newAppointmentTime = Calendar.getInstance();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy hh:mm aa");
+        newAppointmentTime.setTime(dateFormat.parse(appointmentTimeString));
+        return newAppointmentTime;
     }
 
     public List<Doctor> initializeDoctorList() {
@@ -166,4 +217,5 @@ public class SchedulingService {
         return appointmentRepository.findAll();
 
     }
+
 }
